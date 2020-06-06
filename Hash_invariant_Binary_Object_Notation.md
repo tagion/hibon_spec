@@ -47,8 +47,8 @@ element    ::=                        // TYPE key value
  	| UTC key u64
     | INT32 key i32
     | INT64 key i64
-    | BIGINT key ibig
-    | BIGUINT key ubig
+    | IBIG key ibig
+    | UBIG key ubig
     | UINT32 key u32
     | UINT64 key u64
     | CUSTOM key document // document is array where the first element is
@@ -111,25 +111,43 @@ ERROR      ::= others
 
 ## Compliment rules
 
-#### Rules for key objects and array
+#### A. Rules for key objects and array
 
 1. A HiBON package is defined as complete Document including the first length 'len'.
-2. An empty HiBON defined with a size of 1 byte and the value of '\x00'.
-3. The member key can be either an index as a u32 number or as a ASCII text.
-4.  If the len of the key has the value '\x00' then the key is u32 number.
-5. if then len of the key has a value greater than zero then the key is represented as an ASCII string of the length len.
-6. An HiBON is defined as an Array if all the keys is a number u32. 
-7. If one or more keys is not a u32 number then the HiBON is defined as an Object.
-8. If the HiBON is empty the it is defined as both an Object and Array.
-9. All keys most be ordered according to the **key-ordering** algorithm
-10. All keys most comply with **key-valid** algorithm
-11. A keys is defined to be an index according to the **is-index** algorithm
-12. The VER filed most be the first field in the recorder.
-13. The VER of the value '\x00' is not allow. 
-14. If the version filed is not available the HiBON version is the same as the parent HiBON.
-15. If the VER field is not set the default version is zero.
 
-#### Rules for types
+2. An empty HiBON defined with a size of 1 byte and the value of '\x00'.
+
+3. The member key can be either an index as a u32 number or as a ASCII text.
+
+4. If the len of the key has the value '\x00' then the key is u32 number.
+
+5. if then len of the key has a value greater than zero then the key is represented as an ASCII string of the length len.
+
+6. An HiBON is defined as an Array if all the keys is a number u32. 
+
+7. If one or more keys is not a u32 number then the HiBON is defined as an Object.
+
+8. If the HiBON is empty the it is defined as both an Object and Array.
+
+9. All keys most be ordered according to the **is_key_ordered** algorithm.
+
+10. All keys most comply with **in_key_valid** algorithm.
+
+11. A keys is defined to be an index according to the **is_index** algorithm.
+
+12. All keys must be unique this means that no key in a HiBON is allowed to have the same value.
+
+13. The VER filed most be the first field in the recorder.
+
+14. The VER of the value '\x00' is not allow. 
+
+15. If the version filed is not available the HiBON version is the same as the parent HiBON.
+
+16. If the VER field is not set the default version is zero.
+
+    
+
+#### B. Rules for types
 
 1. BOOLEAN type must only contain '\x00' for false and '\x01' for true other values are not allowed
 
@@ -151,7 +169,145 @@ ERROR      ::= others
 
 10. The HASHDOC contains the hash pointer to a HiBON the u32 value selects the hash function type (null is sha256)
 
-11. The user time must alway contain a Document
+11. The user time must alway contain a Document.
 
     
+
+#### C. Algorithm Rules
+
+In the section the rules for the key is describes.
+
+#### is_key_valid
+
+A valid key must comply with following regular expression.
+
+`^[\!\#-\&\(-\+\--\_a-\~]$`     
+
+This includes all ASCII characters from '\x21' until '\x7E' except for white space charters and quotes.
+
+The flowing ASCII chars are not allowed for '\x00' to '\x20' and all ASCII value larger than 'x7E' and `['\x22', '\x27', '\x2C', '\x60' ]`
+
+ *Example code is_key_valid function in D*
+
+
+
+```D
+/++
+ Returns:
+ true if the key is a valid HiBON key
++/
+@safe bool is_key_valid(const(char[]) a) pure nothrow {
+    enum : char {
+        SPACE = 0x20,
+        DEL = 0x7F,
+        DOUBLE_QUOTE = 34,
+        QUOTE = 39,
+        BACK_QUOTE = 0x60
+    }
+    if (a.length > 0) {
+        foreach(c; a) {
+            // Chars between SPACE and DEL is valid
+            // except for " ' ` is not valid
+            if ( (c <= SPACE) || (c >= DEL) ||
+                ( c == DOUBLE_QUOTE ) || ( c == QUOTE ) ||
+                ( c == BACK_QUOTE ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+```
+
+#### is_index
+
+If the key string can be expressed as 32 bit unsigned integer then the key is defined as an index.
+
+The regular expression of the index key can be expressed as.
+
+`([1-9][0-9]*|0)`
+
+The converted value must be less than or equal to `0xFFFFFFFF`
+
+ *Example code is_index function in D*
+
+```D
+/++
+ Converts from a text to a index
+ Params:
+ a = the string to be converted to an index
+ result = index value
+ Returns:
+ true if a is an index
++/
+@safe bool is_index(const(char[]) a, out uint result) pure {
+    import std.conv : to;
+    enum MAX_UINT_SIZE=to!string(uint.max).length;
+    if ( a.length <= MAX_UINT_SIZE ) {
+        if ( (a[0] is '0') && (a.length > 1) ) {
+            return false;
+        }
+        foreach(c; a) {
+            if ( (c < '0') || (c > '9') ) {
+                return false;
+            }
+        }
+        immutable number=a.to!ulong;
+        if ( number <= uint.max ) {
+            result = cast(uint)number;
+            return true;
+        }
+    }
+    return false;
+}
+
+```
+
+#### is_key_ordered
+
+The key is ordered if the key value is less than next key value. If the key **is_index** the value of the key is the index else the value of the key is the string value. When two keys are compared and both keys **is_index** then value integer value of the keys or else the lexical order of the keys is used.
+
+*Example code is_key_ordered function in D*
+
+```D
+/++
+ This function decides the order of the HiBON keys
+ Returns:
+ true if the value of key a is less than the value of key b
++/
+@safe bool less_than(string a, string b) pure
+    in {
+        assert(a.length > 0);
+        assert(b.length > 0);
+    }
+body {
+    uint a_index;
+    uint b_index;
+    if ( is_index(a, a_index) && is_index(b, b_index) ) {
+        return a_index < b_index;
+    }
+    return a < b;
+}
+
+/++
+ Checks if the keys in the range is ordred
+ Returns:
+ ture if all keys in the range is ordered
++/
+@safe bool is_key_ordered(R)(R range) if (isInputRange!R) {
+    string prev_key;
+    while(!range.empty) {
+        if ((prev_key.length == 0) || (less_than(prev_key, range.front))) {
+            prev_key=range.front;
+            range.popFront;
+        }
+        else {
+            return false;
+        }
+    }
+    return true;
+}
+
+```
 
