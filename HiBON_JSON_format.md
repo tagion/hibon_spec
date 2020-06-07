@@ -1,4 +1,4 @@
-### Converting between HiBON and JSON
+# Converting between HiBON and JSON
 
 To secure than HiBON is hash invariant when HiBON is converted back and forth between HiBON and JSON. The JSON must flow the format described below. 
 
@@ -6,7 +6,7 @@ A HiBON object must be generated as a JSON object and a HiBON array must be gene
 
 Except for HIBON type STRING and BOOLEAN which uses the JSON type directly and the JSON null type is converted to a empty HiBON object.
 
-An extra array element can be added for HiBON type HASHDOC which is the hash-function id used. 
+An extra array element is added for HiBON type HASHDOC, CRYPTDOC and CREDENTIAL which is the sets the data block type. 
 
 
 
@@ -36,7 +36,7 @@ This table shows the valid formats describe as regular expression.
 | signed       | `-?(0[xX][0-9a-fA-F]+|[0-9]+)`                               |
 | unsigend     | `(0[xX][0-9a-fA-F]+|[0-9]+)`                                 |
 | hex          | `0[xX][0-9a-fA-F]+`                                          |
-| base64       | `[A-Za-z0-9\+\/]+[=]*`                                       |
+| base64       | `@[A-Za-z0-9\+\/]+[=]*`                                      |
 
  
 

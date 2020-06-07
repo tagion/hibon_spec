@@ -51,12 +51,12 @@ element    ::=                        // TYPE key value
     | UBIG key ubig
     | UINT32 key u32
     | UINT64 key u64
-    | CUSTOM key document // document is array where the first element is
-                          // contains the name of the type and the the following contains
-                          // value
-                          // ex.
-                          // ["u32[]", binary]
-    | HASHDOC key hashdoc // Is the hash pointer to a HiBON
+    | CUSTOM key document       // Used to define none standard costume types
+                                // document is array where the first element is
+                                // contains the name of the type and the value data
+    | HASHDOC key hashdoc       // Is the hash pointer to a HiBON 
+    | CRYPTDOC key cryptdoc     // Is the encrypted HiBON document 
+    | CREDENTIAL key credentail // Used to store public key and/or signatures
     | VER u32             // This field sets the version
     | RFU
     | ERROR
@@ -78,12 +78,15 @@ ibig       ::= len byte*       // Unsigne big-integer
                                // Only valid if ( len % 4 == 0 && len >= 4 )
 binary     ::= len ubyte*      // Byte array of the length len
 string     ::= len char*       // utf-8 array of the length len
-hashdoc    ::= u32 binary      // The first filed set the hash function and binary is the hash-value
+hashdoc    ::= datablock
+cryptdoc   ::= datablock
+credential ::= datablock
+datablock  ::= u32 binary      // The first field set the type and binary data
 // Length fields
 len        ::= leb128!uint     // Same a u32 except null value is accepted
-null       ::= '\x00'
+null       ::= '\x00'          // Define as one byte with the value of zero
 // key format
-key_index  ::= '\x00' u32     // Defined the key as an unsigend 32 bits number used for document arrays
+key_index  ::= null u32     // Defined the key as an unsigend 32 bits number used for document arrays
 key_string ::= len key_text   // Is a key subset of the ascii see rule 1. 
 // Type codes
 FLOAT64    ::= '\x01'
@@ -91,6 +94,7 @@ FLOAT32    ::= '\x21'
 STRING     ::= '\x02'
 DOCUMENT   ::= '\x03'
 BINARY     ::= '\x05'
+CRYPTDOC   ::= '\x06'
 BOOLEAN    ::= '\x08'
 UTC        ::= '\x09'
 INT32      ::= '\x10'
@@ -99,6 +103,7 @@ UINT32     ::= '\x20'
 UINT64     ::= '\x22'
 HASHDOC    ::= '\x23'
 IBIG       ::= '\x1B'
+CREDENTIAL ::= '\x1F'
 UBIG       ::= '\x2B'
 CUSTOM     ::= '\x23'
 VER        ::- '\x3F'
@@ -167,7 +172,7 @@ ERROR      ::= others
 
 9. The sign byte in BIGINT format must only contain '\x00' for positive value and '\x01' for negative value other values are not allowed
 
-10. The HASHDOC contains the hash pointer to a HiBON the u32 value selects the hash function type (null is sha256)
+10. The UNIQUE contains a cryptographically value such as a hash pointer to a HiBON, a public key or a digital signature the u32 value selects the hash function type (null is sha256)
 
 11. The user time must alway contain a Document.
 
