@@ -44,11 +44,11 @@ element    ::=                        // TYPE key value
  	| DOCUMENT key document
  	| BINARY key binary
  	| BOOLEAN key ('\x00'|'\x01')
- 	| UTC key u64
+ 	| SDT key i64              // Standard Time counted as the total 100nsecs from midnight, 
+ 	                           // January 1st, 1 A.D. UTC.
     | INT32 key i32
     | INT64 key i64
-    | IBIG key ibig
-    | UBIG key ubig
+    | BIGINT key ibig
     | UINT32 key u32
     | UINT64 key u64
     | CUSTOM key document       // Used to define none standard costume types
@@ -70,12 +70,10 @@ u64        ::= leb128!ulong    // leb128 decoded to a 64 bits unsigend integer
 i32        ::= leb128!long     // leb128 decoded to a 64 bits sigend integer
 f32        ::= decode!float    // 32 bits floatingpoint
 f64        ::= decode!double   // 64 bits floatingpoint
-ibig       ::= len uint[] sign // Contains a big-integer value stored on multible of 4 bytes which represents
+bigint     ::= len uint[] sign // Contains a big-integer value stored on multible of 4 bytes which represents
                                // unsigned integer in little endian format and the sign
                                // Only valid if ( len % 4 == 1 && len >= 4 )
 sign       ::= '\x00' | '\x01' // Set the sign of the bigint (none two complement)
-ibig       ::= len byte*       // Unsigne big-integer
-                               // Only valid if ( len % 4 == 0 && len >= 4 )
 binary     ::= len ubyte*      // Byte array of the length len
 string     ::= len char*       // utf-8 array of the length len
 hashdoc    ::= datablock
@@ -102,9 +100,8 @@ INT64      ::= '\x12'
 UINT32     ::= '\x20'
 UINT64     ::= '\x22'
 HASHDOC    ::= '\x23'
-IBIG       ::= '\x1B'
+BIGINT     ::= '\x1B'
 CREDENTIAL ::= '\x1F'
-UBIG       ::= '\x2B'
 CUSTOM     ::= '\x23'
 VER        ::- '\x3F'
 // Following types must result in an format error
@@ -128,27 +125,29 @@ ERROR      ::= others
 
 5. if then len of the key has a value greater than zero then the key is represented as an ASCII string of the length len.
 
-6. An HiBON is defined as an Array if all the keys is a number u32. 
+6. An HiBON is defined as an Array only if all the keys is a number u32 and the keys are defined as indices.  
 
-7. If one or more keys is not a u32 number then the HiBON is defined as an Object.
+7. An HiBON all indices most be counting order starting from index 0 to be defined as an Array.
 
-8. If the HiBON is empty the it is defined as both an Object and Array.
+8. If one or more keys is not a u32 number then the HiBON is defined as an Object.
 
-9. All keys most be ordered according to the **is_key_ordered** algorithm.
+9. If the HiBON is empty the it is defined as both an Object and Array.
 
-10. All keys most comply with **in_key_valid** algorithm.
+10. All keys most be ordered according to the **is_key_ordered** algorithm.
 
-11. A keys is defined to be an index according to the **is_index** algorithm.
+11. All keys most comply with **in_key_valid** algorithm.
 
-12. All keys must be unique this means that no key in a HiBON is allowed to have the same value.
+12. A keys is defined to be an index according to the **is_index** algorithm.
 
-13. The VER filed most be the first field in the recorder.
+13. All keys must be unique this means that no key in a HiBON is allowed to have the same value.
 
-14. The VER of the value '\x00' is not allow. 
+14. The VER filed most be the first field in the recorder.
 
-15. If the version filed is not available the HiBON version is the same as the parent HiBON.
+15. The VER of the value '\x00' is not allow. 
 
-16. If the VER field is not set the default version is zero.
+16. If the version filed is not available the HiBON version is the same as the parent HiBON.
+
+17. If the VER field is not set the default version is zero.
 
     
 
@@ -162,11 +161,9 @@ ERROR      ::= others
 
 4. The size of a BINARY can be zero or more
 
-5. UTC is in UNIX ...
+5. STD is standard time counted as the total 100nsecs from midnight, January 1st, 1 A.D. UTC. and is stored as i64
 
-6. The size of BIGUINT must be a multiple of 4 bytes
-
-7. The size of BIGINT must be a multiple of 4 bytes plus one of the signed
+6. The size of BIGINT must be a multiple of 4 bytes plus one of the signed
 
 8. The last byte in BIGINT format is the sign byte
 

@@ -19,18 +19,7 @@ HiBON spec
 
 
 
-[HiBON]: Hash_invariant_Binary_Object_Notation.md	"HiBON"
+[HiRPC]: Hash_invariant_Remote_Procedure_Call.md	"HiBON"
 
 
-
-`test`
-
-```D
-module test;
-void main() {
-	
-}
-```
-
-Notation
 
